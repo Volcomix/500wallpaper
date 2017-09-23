@@ -1,0 +1,12 @@
+{
+  "name": "500wallpaper",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node ."
+  },
+  "dependencies": {
+    "chrome-remote-interface": "^0.25.0"
+  }
+}
