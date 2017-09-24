@@ -16,18 +16,19 @@ async function main() {
     client = await getClient()
     console.log('Chrome started.')
 
-    await download(client)
+    const downloader = new Downloader(client)
+    downloader.download()
 
   } catch (error) {
     console.error(error)
   } finally {
     console.log('Closing Chrome...')
-    if (client) {
+    /*if (client) {
       await client.close()
     }
     if (chrome) {
       chrome.kill()
-    }
+    }*/
     console.log('Chrome closed.')
   }
 }
@@ -44,6 +45,109 @@ async function getClient(maxRetry = 10, retry = 0) {
     return getClient(maxRetry, retry + 1)
   }
 }
+
+class Downloader {
+  constructor(client, options = {}) {
+    this.client = client
+
+    const {
+      imageSize = 2048,
+      minPulse = 99,
+    } = options
+    this.imageSize = imageSize
+    this.minPulse = minPulse
+
+    this.requestUrls = {}
+    this.requestIds = {}
+    this.apiRequestUrl
+    this.apiRequestId
+    this.imageRequestId
+  }
+
+  async download(url = 'https://500px.com/editors/landscapes') {
+    const { Network, Page } = this.client
+
+    Network.requestIntercepted(this.requestIntercepted.bind(this))
+    Network.requestWillBeSent(this.requestWillBeSent.bind(this))
+    Network.loadingFinished(this.loadingFinished.bind(this))
+
+    await Network.enable()
+    await Page.enable()
+
+    await Network.setRequestInterceptionEnabled({ enabled: true })
+
+    console.log('Navigating to 500px.com...')
+    await Page.navigate({ url })
+  }
+
+  requestIntercepted({ interceptionId, request }) {
+    const { Network } = this.client
+    let { url } = request
+    if (!this.apiRequestUrl && this.isApiRequest(request)) {
+      console.log(`API request intercepted: ${url}`)
+      this.apiRequestUrl = url
+      url = this.modifyApiRequest(url)
+      console.log('Waiting for API request...')
+    }
+    Network.continueInterceptedRequest({ interceptionId, url })
+  }
+
+  requestWillBeSent({ requestId, request }) {
+    const { method, url } = request
+    if (method === 'GET') {
+      this.requestUrls[url] = requestId
+      this.requestIds[requestId] = false
+      if (url === this.apiRequestUrl) {
+        this.apiRequestId = requestId
+      }
+    }
+  }
+
+  loadingFinished({ requestId }) {
+    if (this.requestIds[requestId] === undefined) {
+      return
+    }
+    this.requestIds[requestId] = true
+    if (requestId === this.apiRequestId) {
+      this.apiRequestFinished(requestId)
+    } else if (requestId === this.imageRequestId) {
+      this.imageRequestFinished(requestId)
+    }
+  }
+
+  async apiRequestFinished(requestId) {
+    const { Network } = this.client
+    console.log('API request finished.')
+    const response = await Network.getResponseBody({ requestId })
+    const { photos } = JSON.parse(response.body)
+    const photo = photos.find(photo => this.shouldSavePhoto(photo))
+
+    console.log(photo)
+  }
+
+  imageRequestFinished(requestId) {
+    console.log('Image request finished.')
+  }
+
+  isApiRequest({ method, url }) {
+    return method === 'GET' && Downloader.apiRequestPattern.test(url)
+  }
+
+  modifyApiRequest(url) {
+    const pattern = `&image_size%5B%5D=(?!${this.imageSize})\d*`
+    return url
+      .replace(new RegExp(pattern, 'g'), '')
+      .replace(/&image_size%5B%5D=/g, '&image_size=')
+  }
+
+  shouldSavePhoto(photo) {
+    return photo.width > photo.height
+      && photo.width >= this.imageSize
+      && photo.highest_rating > this.minPulse
+  }
+}
+
+Downloader.apiRequestPattern = /^https:\/\/api.500px.com\/v1\/photos/
 
 async function download({ Network, Page, Runtime }) {
   const requestsUrls = {}
