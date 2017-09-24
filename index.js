@@ -130,15 +130,10 @@ class Downloader {
       const { Network } = this.client
       let { url } = request
       if (!this.apiRequestUrl && this.isApiRequest(request)) {
-        console.log()
-        console.log(`API request intercepted:`)
-        console.log(url)
-        console.log()
+        console.log(`\nAPI request intercepted:\n${url}`)
         this.apiRequestUrl = url
         url = this.modifyApiRequest(url)
-        console.log(`API request modified:`)
-        console.log(url)
-        console.log()
+        console.log(`\nAPI request modified:\n${url}\n`)
         console.log('Waiting for API request...')
       }
       await Network.continueInterceptedRequest({ interceptionId, url })
@@ -184,8 +179,7 @@ class Downloader {
     const response = await Network.getResponseBody({ requestId })
     const { photos } = JSON.parse(response.body)
     const photo = photos.find(photo => this.shouldSavePhoto(photo))
-    console.log()
-    console.log('Image found:')
+    console.log('\nImage found:')
     console.log({
       name: photo.name,
       author: {
