@@ -44,7 +44,7 @@ async function getClient(maxRetry = 10, retry = 0) {
     return await CDP()
   } catch (error) {
     if (retry === maxRetry) {
-      throw new Error('Could not start Chrome!')
+      throw new Error('Client connection failed!')
     }
     await setTimeoutPromise(500)
     return getClient(maxRetry, retry + 1)
@@ -128,19 +128,25 @@ class Downloader {
   }
 
   async requestIntercepted({ interceptionId, request }) {
-    try {
-      const { Network } = this.client
-      let { url } = request
-      if (!this.apiRequestUrl && this.isApiRequest(request)) {
-        console.log(`\nAPI request intercepted:\n${url}`)
-        this.apiRequestUrl = url
-        url = this.modifyApiRequest(url)
+    const { Network } = this.client
+    if (!this.apiRequestUrl && this.isApiRequest(request)) {
+      try {
+        console.log(`\nAPI request intercepted:\n${request.url}`)
+        this.apiRequestUrl = request.url
+        const url = this.modifyApiRequest(request.url)
         console.log(`\nAPI request modified:\n${url}\n`)
         console.log('Waiting for API request...')
+        await Network.continueInterceptedRequest({ interceptionId, url })
+      } catch (error) {
+        this.reject(error)
       }
-      await Network.continueInterceptedRequest({ interceptionId, url })
-    } catch (error) {
-      this.reject(error)
+    } else {
+      const { url } = request
+      try {
+        await Network.continueInterceptedRequest({ interceptionId, url })
+      } catch (error) {
+        // Ignored
+      }
     }
   }
 
