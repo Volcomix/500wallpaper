@@ -74,7 +74,10 @@ class Downloader {
   constructor(client, options = {}) {
     this.client = client
 
-    const { imageSize, minPulse } = { ...Downloader.defaultOptions, options }
+    const { imageSize, minPulse } = {
+      ...Downloader.defaultOptions,
+      ...options
+    }
     this.imageSize = imageSize
     this.minPulse = minPulse
   }
@@ -256,7 +259,7 @@ class Downloader {
   shouldSavePhoto(photo) {
     return photo.width > photo.height
       && photo.width >= this.imageSize
-      && photo.highest_rating > this.minPulse
+      && photo.highest_rating >= this.minPulse
   }
 }
 
