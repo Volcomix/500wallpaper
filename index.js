@@ -13,14 +13,8 @@ async function main() {
     client = await getClient()
     console.log('Client connected.')
     const downloader = new Downloader(client)
-    await downloader.download(
-      'wallpaper.png',
-      'https://500px.com/editors/landscapes'
-    )
-    await downloader.download(
-      'lockscreen.png',
-      'https://500px.com/popular/landscapes'
-    )
+    await downloader.download('wallpaper.png', 'editors/landscapes')
+    await downloader.download('lockscreen.png', 'popular/landscapes')
   } catch (error) {
     console.error(error)
   } finally {
@@ -58,8 +52,8 @@ async function getClient(maxRetry = 10, retry = 0) {
 }
 
 class Downloader {
-  static get defaultUrl() {
-    return 'https://500px.com/editors/landscapes'
+  static get defaultRelativeUrl() {
+    return 'editors/landscapes'
   }
 
   static get defaultOptions() {
@@ -67,6 +61,10 @@ class Downloader {
       imageSize: 2048,
       minPulse: 99,
     }
+  }
+
+  static get baseUrl() {
+    return 'https://500px.com/'
   }
 
   static get apiRequestPattern() {
@@ -100,7 +98,7 @@ class Downloader {
     this.isInitialized = true
   }
 
-  async download(destFile, url = Downloader.defaultUrl) {
+  async download(destFile, relativeUrl = Downloader.defaultRelativeUrl) {
     const { Network, Page } = this.client
 
     this.requestUrls = {}
@@ -115,6 +113,7 @@ class Downloader {
       await this.init()
     }
 
+    const url = Downloader.baseUrl + relativeUrl
     console.log(`Navigating to ${url}...`)
     await Page.navigate({ url })
     await Page.loadEventFired()
