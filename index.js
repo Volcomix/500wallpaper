@@ -116,15 +116,17 @@ class Downloader {
       await this.init()
     }
 
+    const promise = new Promise((resolve, reject) => {
+      this.resolve = resolve
+      this.reject = reject
+    })
+
     const url = Downloader.baseUrl + relativeUrl
     console.log(`Navigating to ${url}...`)
     await Page.navigate({ url })
     await Page.loadEventFired()
 
-    await new Promise((resolve, reject) => {
-      this.resolve = resolve
-      this.reject = reject
-    })
+    return promise
   }
 
   async requestIntercepted({ interceptionId, request }) {
