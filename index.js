@@ -65,7 +65,7 @@ class Downloader {
   constructor(client, options = {}) {
     this.client = client
 
-    const { imageSize, minPulse, } = { ...Downloader.defaultOptions, options }
+    const { imageSize, minPulse } = { ...Downloader.defaultOptions, options }
     this.imageSize = imageSize
     this.minPulse = minPulse
 
@@ -88,17 +88,23 @@ class Downloader {
 
     await Network.setRequestInterceptionEnabled({ enabled: true })
 
-    console.log('Navigating to 500px.com...')
-    await Page.navigate({ url })
+    console.log(`Navigating to ${url}...`)
+    Page.navigate({ url })
   }
 
   requestIntercepted({ interceptionId, request }) {
     const { Network } = this.client
     let { url } = request
     if (!this.apiRequestUrl && this.isApiRequest(request)) {
-      console.log(`API request intercepted: ${url}`)
+      console.log()
+      console.log(`API request intercepted:`)
+      console.log(url)
+      console.log()
       this.apiRequestUrl = url
       url = this.modifyApiRequest(url)
+      console.log(`API request modified:`)
+      console.log(url)
+      console.log()
       console.log('Waiting for API request...')
     }
     Network.continueInterceptedRequest({ interceptionId, url })
@@ -133,12 +139,48 @@ class Downloader {
     const response = await Network.getResponseBody({ requestId })
     const { photos } = JSON.parse(response.body)
     const photo = photos.find(photo => this.shouldSavePhoto(photo))
-
-    console.log(photo)
+    console.log()
+    console.log('Image found:')
+    console.log({
+      name: photo.name,
+      author: {
+        firstname: photo.user.firstname,
+        lastname: photo.user.lastname,
+      },
+      image_url: photo.image_url,
+    })
+    console.log()
+    this.saveImage(photo.image_url)
   }
 
-  imageRequestFinished(requestId) {
+  saveImage(url) {
+    this.imageRequestId = this.requestUrls[url]
+    const isImageRequestFinished = this.requestIds[this.imageRequestId]
+    if (isImageRequestFinished) {
+      this.imageRequestFinished()
+    } else if (isImageRequestFinished === undefined) {
+      this.downloadImage(url)
+    } else {
+      console.log('Waiting for image request...')
+    }
+  }
+
+  downloadImage(url) {
+    console.log('Downloading image...')
+  }
+
+  async imageRequestFinished() {
+    const { Network } = this.client
     console.log('Image request finished.')
+    const { body } = await Network.getResponseBody({
+      requestId: this.imageRequestId,
+    })
+    console.log('Saving image...')
+    const imageData = this.convertImage(body)
+  }
+
+  convertImage(imageData) {
+
   }
 
   isApiRequest({ method, url }) {
@@ -146,7 +188,7 @@ class Downloader {
   }
 
   modifyApiRequest(url) {
-    const pattern = `&image_size%5B%5D=(?!${this.imageSize})\d*`
+    const pattern = `&image_size%5B%5D=(?!${this.imageSize})\\d*`
     return url
       .replace(new RegExp(pattern, 'g'), '')
       .replace(/&image_size%5B%5D=/g, '&image_size=')
