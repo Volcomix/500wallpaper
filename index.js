@@ -47,13 +47,25 @@ async function getClient(maxRetry = 10, retry = 0) {
 }
 
 class Downloader {
+  static get defaultUrl() {
+    return 'https://500px.com/editors/landscapes'
+  }
+
+  static get defaultOptions() {
+    return {
+      imageSize: 2048,
+      minPulse: 99,
+    }
+  }
+
+  static get apiRequestPattern() {
+    return /^https:\/\/api.500px.com\/v1\/photos/
+  }
+
   constructor(client, options = {}) {
     this.client = client
 
-    const {
-      imageSize = 2048,
-      minPulse = 99,
-    } = options
+    const { imageSize, minPulse, } = { ...Downloader.defaultOptions, options }
     this.imageSize = imageSize
     this.minPulse = minPulse
 
@@ -64,7 +76,7 @@ class Downloader {
     this.imageRequestId
   }
 
-  async download(url = 'https://500px.com/editors/landscapes') {
+  async download(url = Downloader.defaultUrl) {
     const { Network, Page } = this.client
 
     Network.requestIntercepted(this.requestIntercepted.bind(this))
@@ -146,8 +158,6 @@ class Downloader {
       && photo.highest_rating > this.minPulse
   }
 }
-
-Downloader.apiRequestPattern = /^https:\/\/api.500px.com\/v1\/photos/
 
 async function download({ Network, Page, Runtime }) {
   const requestsUrls = {}
