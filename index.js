@@ -16,8 +16,7 @@ async function main() {
     client = await getClient()
     console.log('Chrome started.')
 
-    const downloader = new Downloader(client)
-    downloader.download()
+    new Downloader(client).download('wallpaper.png')
 
   } catch (error) {
     console.error(error)
@@ -74,10 +73,14 @@ class Downloader {
     this.apiRequestUrl
     this.apiRequestId
     this.imageRequestId
+
+    this.destFile
   }
 
-  async download(url = Downloader.defaultUrl) {
+  async download(destFile, url = Downloader.defaultUrl) {
     const { Network, Page } = this.client
+
+    this.destFile = destFile
 
     Network.requestIntercepted(this.requestIntercepted.bind(this))
     Network.requestWillBeSent(this.requestWillBeSent.bind(this))
@@ -176,11 +179,31 @@ class Downloader {
       requestId: this.imageRequestId,
     })
     console.log('Saving image...')
-    const imageData = this.convertImage(body)
+    const imageData = await this.convertImage(body)
+    const buffer = Buffer.from(imageData, 'base64')
+    await writeFile(this.destFile, buffer)
+    console.log(`Image saved: ${this.destFile}`)
   }
 
-  convertImage(imageData) {
-
+  async convertImage(imageData) {
+    const { Runtime } = this.client
+    const result = await Runtime.evaluate({
+      expression: `
+        new Promise(function (resolve) {
+          const image = new Image
+          image.onload = function() {
+            var canvas = document.createElement('canvas')
+            canvas.width = this.naturalWidth
+            canvas.height = this.naturalHeight
+            canvas.getContext('2d').drawImage(this, 0, 0)
+            resolve(canvas.toDataURL('image/png'))
+          }
+          image.src = 'data:;base64,${imageData}'
+        })
+      `,
+      awaitPromise: true,
+    })
+    return result.result.value.replace(/^data:image\/(png|jpg);base64,/, '')
   }
 
   isApiRequest({ method, url }) {
@@ -199,112 +222,6 @@ class Downloader {
       && photo.width >= this.imageSize
       && photo.highest_rating > this.minPulse
   }
-}
-
-async function download({ Network, Page, Runtime }) {
-  const requestsUrls = {}
-  const requestsIds = {}
-  let interceptedUrl
-  let interceptedRequestId
-  let imageRequestId
-
-  Network.requestIntercepted(({ interceptionId, request }) => {
-    let { method, url } = request
-
-    if (!interceptedUrl && method === 'GET' && url.startsWith('https://api.500px.com/v1/photos')) {
-      console.log(`API request intercepted: ${url}`)
-      interceptedUrl = url
-
-      url = url
-        .replace(/&image_size%5B%5D=(?!2048)\d*/g, '')
-        .replace(/&image_size%5B%5D=/g, '&image_size=')
-
-      console.log('Waiting for API request...')
-    }
-
-    Network.continueInterceptedRequest({ interceptionId, url })
-  })
-
-  Network.requestWillBeSent(({ requestId, request }) => {
-    const { method, url } = request
-    if (method === 'GET') {
-      requestsUrls[url] = requestId
-      requestsIds[requestId] = false
-      if (url === interceptedUrl) {
-        interceptedRequestId = requestId
-      }
-    }
-  })
-
-  const loadImage = new Promise((resolve, reject) => {
-    Network.loadingFinished(async ({ requestId }) => {
-      requestsIds[requestId] = true
-      if (requestId === interceptedRequestId) {
-        console.log('API request done.')
-        const response = await Network.getResponseBody({ requestId })
-        const body = JSON.parse(response.body)
-        const { photos } = body
-        const photo = photos.find(photo => photo.width > photo.height && photo.width >= 2048 && photo.highest_rating > 99)
-
-        console.log(photo)
-
-        console.log(`Image URL: ${photo.image_url}`)
-
-        imageRequestId = requestsUrls[photo.image_url]
-        const alreadyLoaded = requestsIds[imageRequestId]
-        console.log(`Image already loaded: ${alreadyLoaded}`)
-
-        if (alreadyLoaded) {
-        } else if (alreadyLoaded === false) {
-          console.log('Waiting for image loading...')
-        } else {
-          console.log('Loading image...')
-        }
-      } else if (requestId === imageRequestId) {
-        console.log('Image loaded.')
-        const response = await Network.getResponseBody({ requestId })
-        console.log('Saving image...')
-        let imageData
-        if (response.base64Encoded) {
-          const result = await Runtime.evaluate({
-            expression: `
-              new Promise(function (resolve) {
-                const image = new Image
-                image.onload = function() {
-                  var canvas = document.createElement('canvas')
-                  canvas.width = this.naturalWidth
-                  canvas.height = this.naturalHeight
-                  canvas.getContext('2d').drawImage(this, 0, 0)
-                  resolve(canvas.toDataURL('image/png'))
-                }
-                image.src = 'data:;base64,${response.body}'
-              })
-            `,
-            awaitPromise: true,
-          })
-          imageData = result.result.value.replace(/^data:image\/(png|jpg);base64,/, '')
-          imageData = Buffer.from(imageData, 'base64')
-        } else {
-          imageData = response.body
-        }
-        await writeFile('wallpaper.png', imageData)
-
-        console.log('Image saved.')
-
-        resolve()
-      }
-    })
-  })
-
-  await Network.enable()
-  await Page.enable()
-
-  await Network.setRequestInterceptionEnabled({ enabled: true })
-
-  console.log('Navigating to 500px.com...')
-  await Page.navigate({ url: 'https://500px.com/editors/landscapes' })
-
-  await loadImage
 }
 
 main()
