@@ -16,42 +16,71 @@ async function main() {
     client = await getClient()
     console.log('Chrome started.')
 
-    const { Network, Page, Runtime } = client
+    await download(client)
 
-    const requestsUrls = {}
-    const requestsIds = {}
-    let interceptedUrl
-    let interceptedRequestId
-    let imageRequestId
+  } catch (error) {
+    console.error(error)
+  } finally {
+    console.log('Closing Chrome...')
+    if (client) {
+      await client.close()
+    }
+    if (chrome) {
+      chrome.kill()
+    }
+    console.log('Chrome closed.')
+  }
+}
 
-    Network.requestIntercepted(({ interceptionId, request }) => {
-      let { method, url } = request
+async function getClient(maxRetry = 10, retry = 0) {
+  try {
+    console.log(`Waiting for client... (${retry}/${maxRetry})`)
+    return await CDP()
+  } catch (error) {
+    if (retry === maxRetry) {
+      throw new Error('Could not start Chrome!')
+    }
+    await setTimeoutPromise(500)
+    return getClient(maxRetry, retry + 1)
+  }
+}
 
-      if (!interceptedUrl && method === 'GET' && url.startsWith('https://api.500px.com/v1/photos')) {
-        console.log(`API request intercepted: ${url}`)
-        interceptedUrl = url
+async function download({ Network, Page, Runtime }) {
+  const requestsUrls = {}
+  const requestsIds = {}
+  let interceptedUrl
+  let interceptedRequestId
+  let imageRequestId
 
-        url = url
-          .replace(/&image_size%5B%5D=(?!2048)\d*/g, '')
-          .replace(/&image_size%5B%5D=/g, '&image_size=')
+  Network.requestIntercepted(({ interceptionId, request }) => {
+    let { method, url } = request
 
-        console.log('Waiting for API request...')
+    if (!interceptedUrl && method === 'GET' && url.startsWith('https://api.500px.com/v1/photos')) {
+      console.log(`API request intercepted: ${url}`)
+      interceptedUrl = url
+
+      url = url
+        .replace(/&image_size%5B%5D=(?!2048)\d*/g, '')
+        .replace(/&image_size%5B%5D=/g, '&image_size=')
+
+      console.log('Waiting for API request...')
+    }
+
+    Network.continueInterceptedRequest({ interceptionId, url })
+  })
+
+  Network.requestWillBeSent(({ requestId, request }) => {
+    const { method, url } = request
+    if (method === 'GET') {
+      requestsUrls[url] = requestId
+      requestsIds[requestId] = false
+      if (url === interceptedUrl) {
+        interceptedRequestId = requestId
       }
+    }
+  })
 
-      Network.continueInterceptedRequest({ interceptionId, url })
-    })
-
-    Network.requestWillBeSent(({ requestId, request }) => {
-      const { method, url } = request
-      if (method === 'GET') {
-        requestsUrls[url] = requestId
-        requestsIds[requestId] = false
-        if (url === interceptedUrl) {
-          interceptedRequestId = requestId
-        }
-      }
-    })
-
+  const loadImage = new Promise((resolve, reject) => {
     Network.loadingFinished(async ({ requestId }) => {
       requestsIds[requestId] = true
       if (requestId === interceptedRequestId) {
@@ -59,7 +88,9 @@ async function main() {
         const response = await Network.getResponseBody({ requestId })
         const body = JSON.parse(response.body)
         const { photos } = body
-        const photo = photos.find(photo => photo.width > photo.height && photo.rating > 60)
+        const photo = photos.find(photo => photo.width > photo.height && photo.width >= 2048 && photo.highest_rating > 99)
+
+        console.log(photo)
 
         console.log(`Image URL: ${photo.image_url}`)
 
@@ -104,51 +135,20 @@ async function main() {
 
         console.log('Image saved.')
 
-        console.log('Closing Chrome...')
-        if (client) {
-          await client.close()
-        }
-        if (chrome) {
-          chrome.kill()
-        }
-        console.log('Chrome closed.')
+        resolve()
       }
     })
+  })
 
-    await Network.enable()
-    await Page.enable()
+  await Network.enable()
+  await Page.enable()
 
-    await Network.setRequestInterceptionEnabled({ enabled: true })
+  await Network.setRequestInterceptionEnabled({ enabled: true })
 
-    console.log('Navigating to 500px.com...')
-    await Page.navigate({ url: 'https://500px.com/editors/landscapes' })
-    await Page.loadEventFired()
+  console.log('Navigating to 500px.com...')
+  await Page.navigate({ url: 'https://500px.com/editors/landscapes' })
 
-  } catch (error) {
-    console.error(error)
-
-    console.log('Closing Chrome...')
-    if (client) {
-      await client.close()
-    }
-    if (chrome) {
-      chrome.kill()
-    }
-    console.log('Chrome closed.')
-  }
-}
-
-async function getClient(maxRetry = 10, retry = 0) {
-  try {
-    console.log(`Waiting for client... (${retry}/${maxRetry})`)
-    return await CDP()
-  } catch (error) {
-    if (retry === maxRetry) {
-      throw new Error('Could not start Chrome!')
-    }
-    await setTimeoutPromise(500)
-    return getClient(maxRetry, retry + 1)
-  }
+  await loadImage
 }
 
 main()
