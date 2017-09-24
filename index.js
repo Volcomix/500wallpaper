@@ -16,18 +16,18 @@ async function main() {
     client = await getClient()
     console.log('Chrome started.')
 
-    new Downloader(client).download('wallpaper.png')
+    await new Downloader(client).download('wallpaper.png')
 
   } catch (error) {
     console.error(error)
   } finally {
     console.log('Closing Chrome...')
-    /*if (client) {
+    if (client) {
       await client.close()
     }
     if (chrome) {
       chrome.kill()
-    }*/
+    }
     console.log('Chrome closed.')
   }
 }
@@ -70,11 +70,6 @@ class Downloader {
 
     this.requestUrls = {}
     this.requestIds = {}
-    this.apiRequestUrl
-    this.apiRequestId
-    this.imageRequestId
-
-    this.destFile
   }
 
   async download(destFile, url = Downloader.defaultUrl) {
@@ -92,47 +87,64 @@ class Downloader {
     await Network.setRequestInterceptionEnabled({ enabled: true })
 
     console.log(`Navigating to ${url}...`)
-    Page.navigate({ url })
+    await Page.navigate({ url })
+
+    await new Promise((resolve, reject) => {
+      this.resolve = resolve
+      this.reject = reject
+    })
   }
 
-  requestIntercepted({ interceptionId, request }) {
-    const { Network } = this.client
-    let { url } = request
-    if (!this.apiRequestUrl && this.isApiRequest(request)) {
-      console.log()
-      console.log(`API request intercepted:`)
-      console.log(url)
-      console.log()
-      this.apiRequestUrl = url
-      url = this.modifyApiRequest(url)
-      console.log(`API request modified:`)
-      console.log(url)
-      console.log()
-      console.log('Waiting for API request...')
+  async requestIntercepted({ interceptionId, request }) {
+    try {
+      const { Network } = this.client
+      let { url } = request
+      if (!this.apiRequestUrl && this.isApiRequest(request)) {
+        console.log()
+        console.log(`API request intercepted:`)
+        console.log(url)
+        console.log()
+        this.apiRequestUrl = url
+        url = this.modifyApiRequest(url)
+        console.log(`API request modified:`)
+        console.log(url)
+        console.log()
+        console.log('Waiting for API request...')
+      }
+      await Network.continueInterceptedRequest({ interceptionId, url })
+    } catch (error) {
+      this.reject(error)
     }
-    Network.continueInterceptedRequest({ interceptionId, url })
   }
 
   requestWillBeSent({ requestId, request }) {
-    const { method, url } = request
-    if (method === 'GET') {
-      this.requestUrls[url] = requestId
-      this.requestIds[requestId] = false
-      if (url === this.apiRequestUrl) {
-        this.apiRequestId = requestId
+    try {
+      const { method, url } = request
+      if (method === 'GET') {
+        this.requestUrls[url] = requestId
+        this.requestIds[requestId] = false
+        if (url === this.apiRequestUrl) {
+          this.apiRequestId = requestId
+        }
       }
+    } catch (error) {
+      this.reject(error)
     }
   }
 
-  loadingFinished({ requestId }) {
-    if (this.requestIds[requestId] === undefined) {
-      return
-    }
-    this.requestIds[requestId] = true
-    if (requestId === this.apiRequestId) {
-      this.apiRequestFinished(requestId)
-    } else if (requestId === this.imageRequestId) {
-      this.imageRequestFinished(requestId)
+  async loadingFinished({ requestId }) {
+    try {
+      if (this.requestIds[requestId] === undefined) {
+        return
+      }
+      this.requestIds[requestId] = true
+      if (requestId === this.apiRequestId) {
+        await this.apiRequestFinished(requestId)
+      } else if (requestId === this.imageRequestId) {
+        await this.imageRequestFinished(requestId)
+      }
+    } catch (error) {
+      this.reject(error)
     }
   }
 
@@ -153,22 +165,22 @@ class Downloader {
       image_url: photo.image_url,
     })
     console.log()
-    this.saveImage(photo.image_url)
+    await this.saveImage(photo.image_url)
   }
 
-  saveImage(url) {
+  async saveImage(url) {
     this.imageRequestId = this.requestUrls[url]
     const isImageRequestFinished = this.requestIds[this.imageRequestId]
     if (isImageRequestFinished) {
-      this.imageRequestFinished()
+      await this.imageRequestFinished()
     } else if (isImageRequestFinished === undefined) {
-      this.downloadImage(url)
+      await this.downloadImage(url)
     } else {
       console.log('Waiting for image request...')
     }
   }
 
-  downloadImage(url) {
+  async downloadImage(url) {
     console.log('Downloading image...')
   }
 
@@ -183,6 +195,7 @@ class Downloader {
     const buffer = Buffer.from(imageData, 'base64')
     await writeFile(this.destFile, buffer)
     console.log(`Image saved: ${this.destFile}`)
+    this.resolve()
   }
 
   async convertImage(imageData) {
