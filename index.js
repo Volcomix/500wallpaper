@@ -12,7 +12,15 @@ async function main() {
     chrome = startChrome()
     client = await getClient()
     console.log('Client connected.')
-    await new Downloader(client).download('wallpaper.png')
+    const downloader = new Downloader(client)
+    await downloader.download(
+      'wallpaper.png',
+      'https://500px.com/editors/landscapes'
+    )
+    await downloader.download(
+      'lockscreen.png',
+      'https://500px.com/popular/landscapes'
+    )
   } catch (error) {
     console.error(error)
   } finally {
@@ -71,15 +79,12 @@ class Downloader {
     const { imageSize, minPulse } = { ...Downloader.defaultOptions, options }
     this.imageSize = imageSize
     this.minPulse = minPulse
-
-    this.requestUrls = {}
-    this.requestIds = {}
   }
 
-  async download(destFile, url = Downloader.defaultUrl) {
+  async init() {
     const { Network, Page } = this.client
 
-    this.destFile = destFile
+    console.log('Configuring client...')
 
     Network.requestIntercepted(this.requestIntercepted.bind(this))
     Network.requestWillBeSent(this.requestWillBeSent.bind(this))
@@ -90,8 +95,29 @@ class Downloader {
 
     await Network.setRequestInterceptionEnabled({ enabled: true })
 
+    console.log('Client configured.')
+
+    this.isInitialized = true
+  }
+
+  async download(destFile, url = Downloader.defaultUrl) {
+    const { Network, Page } = this.client
+
+    this.requestUrls = {}
+    this.requestIds = {}
+    this.apiRequestUrl = undefined
+    this.apiRequestId = undefined
+    this.imageRequestId = undefined
+
+    this.destFile = destFile
+
+    if (!this.isInitialized) {
+      await this.init()
+    }
+
     console.log(`Navigating to ${url}...`)
     await Page.navigate({ url })
+    await Page.loadEventFired()
 
     await new Promise((resolve, reject) => {
       this.resolve = resolve
