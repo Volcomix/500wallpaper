@@ -9,32 +9,36 @@ async function main() {
   let client
   try {
     console.log('Starting Chrome...')
-    chrome = execFile('google-chrome-stable', [
-      '--headless',
-      '--remote-debugging-port=9222',
-    ])
+    chrome = startChrome()
     client = await getClient()
-    console.log('Chrome started.')
-
+    console.log('Client connected.')
     await new Downloader(client).download('wallpaper.png')
-
   } catch (error) {
     console.error(error)
   } finally {
-    console.log('Closing Chrome...')
     if (client) {
+      console.log('Closing client...')
       await client.close()
+      console.log('Client closed.')
     }
     if (chrome) {
+      console.log('Stopping Chrome...')
       chrome.kill()
+      console.log('Chrome stopped.')
     }
-    console.log('Chrome closed.')
   }
+}
+
+function startChrome() {
+  return execFile('google-chrome-stable', [
+    '--headless',
+    '--remote-debugging-port=9222',
+  ])
 }
 
 async function getClient(maxRetry = 10, retry = 0) {
   try {
-    console.log(`Waiting for client... (${retry}/${maxRetry})`)
+    console.log(`Trying to connect client... (${retry}/${maxRetry})`)
     return await CDP()
   } catch (error) {
     if (retry === maxRetry) {
