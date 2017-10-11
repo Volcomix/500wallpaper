@@ -12,7 +12,7 @@ async function main() {
     chrome = startChrome()
     client = await getClient()
     console.log('Client connected.')
-    const downloader = new Downloader(client)
+    const downloader = new Downloader(client, { minPulse: 80 })
     await downloader.download('wallpaper.png', 'editors/landscapes')
     await downloader.download('lockscreen.png', 'popular/landscapes')
   } catch (error) {
@@ -60,6 +60,8 @@ class Downloader {
     return {
       imageSize: 2048,
       minPulse: 99,
+      screenWidth: 1920,
+      screenHeight: 1080,
     }
   }
 
@@ -74,12 +76,14 @@ class Downloader {
   constructor(client, options = {}) {
     this.client = client
 
-    const { imageSize, minPulse } = {
+    const { imageSize, minPulse, screenWidth, screenHeight } = {
       ...Downloader.defaultOptions,
       ...options
     }
     this.imageSize = imageSize
     this.minPulse = minPulse
+    this.screenWidth = screenWidth
+    this.screenHeight = screenHeight
   }
 
   async init() {
@@ -266,7 +270,8 @@ class Downloader {
 
   shouldSavePhoto(photo) {
     return photo.width > photo.height
-      && photo.width >= this.imageSize
+      && photo.width >= this.screenWidth
+      && photo.height >= this.screenHeight
       && photo.highest_rating >= this.minPulse
   }
 }
