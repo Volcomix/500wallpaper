@@ -98,7 +98,7 @@ class Downloader {
     await Network.enable()
     await Page.enable()
 
-    await Network.setRequestInterceptionEnabled({ enabled: true })
+    await Network.setRequestInterception({ patterns: [{}] })
 
     console.log('Client configured.')
 
