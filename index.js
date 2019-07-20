@@ -21,6 +21,7 @@ const paths = {
       page.waitForNavigation(),
       page.click('.photo_thumbnail'),
     ])
+    const images = []
     for (let i = 0; i < 50; i++) {
       await page.waitFor(() => {
         const img = document.querySelector('.photo-show__img')
@@ -31,20 +32,24 @@ const paths = {
         height: img.naturalHeight,
         src: img.src,
       }))
-      if (img.width > img.height && img.width >= 1920 && img.height >= 1080) {
-        const file = fs.createWriteStream(`${fileName}.jpg`)
-        https.get(img.src, response => response.pipe(file))
-        console.log(`Downloading ${fileName}: ${page.url()}`)
-        break
+      if (img.width > img.height && img.width >= 1900 && img.height >= 800) {
+        console.log('Keeping:', page.url())
+        images.push({ url: page.url(), src: img.src })
+        if (images.length === 5) {
+          break
+        }
       } else {
-        console.log('Skipping photo with unsuitable size:', {
-          width: img.width,
-          height: img.height,
-        })
+        console.log('Skipping:', page.url())
       }
       const navs = await page.$$('[class^=Elements__PhotoNavigationWrapper]')
       await Promise.all([page.waitForNavigation(), navs.pop().click()])
     }
+    const random = Math.floor(Math.random() * images.length)
+    console.log('Random:', random)
+    const image = images[random]
+    const file = fs.createWriteStream(`${fileName}.jpg`)
+    https.get(image.src, response => response.pipe(file))
+    console.log(`Downloading ${fileName}: ${image.url}`)
   }
   await browser.close()
 })()
