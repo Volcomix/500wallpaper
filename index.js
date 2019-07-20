@@ -1,279 +1,44 @@
-const util = require('util')
-const setTimeoutPromise = util.promisify(setTimeout)
-const writeFile = util.promisify(require('fs').writeFile)
-const { execFile } = require('child_process')
-const CDP = require('chrome-remote-interface')
+const https = require('https')
+const fs = require('fs')
+const puppeteer = require('puppeteer')
 
-async function main() {
-  let chrome
-  let client
-  try {
-    console.log('Starting Chrome...')
-    chrome = startChrome()
-    client = await getClient()
-    console.log('Client connected.')
-    const downloader = new Downloader(client, { minPulse: 80 })
-    await downloader.download('wallpaper.png', 'editors/landscapes')
-    await downloader.download('lockscreen.png', 'popular/landscapes')
-  } catch (error) {
-    console.error(error)
-  } finally {
-    if (client) {
-      console.log('Closing client...')
-      await client.close()
-      console.log('Client closed.')
-    }
-    if (chrome) {
-      console.log('Stopping Chrome...')
-      chrome.kill()
-      console.log('Chrome stopped.')
-    }
-  }
+const paths = {
+  wallpaper: 'popular/landscapes',
+  lockscreen: 'editors/landscapes',
 }
 
-function startChrome() {
-  return execFile('google-chrome-stable', [
-    '--headless',
-    '--remote-debugging-port=9222',
-  ])
-}
-
-async function getClient(maxRetry = 10, retry = 0) {
-  try {
-    console.log(`Trying to connect client... (${retry}/${maxRetry})`)
-    return await CDP()
-  } catch (error) {
-    if (retry === maxRetry) {
-      throw new Error('Client connection failed!')
-    }
-    await setTimeoutPromise(500)
-    return getClient(maxRetry, retry + 1)
-  }
-}
-
-class Downloader {
-  static get defaultRelativeUrl() {
-    return 'editors/landscapes'
-  }
-
-  static get defaultOptions() {
-    return {
-      imageSize: 2048,
-      minPulse: 99,
-      screenWidth: 1920,
-      screenHeight: 1080,
-    }
-  }
-
-  static get baseUrl() {
-    return 'https://500px.com/'
-  }
-
-  static get apiRequestPattern() {
-    return /^https:\/\/api.500px.com\/v1\/photos/
-  }
-
-  constructor(client, options = {}) {
-    this.client = client
-
-    const { imageSize, minPulse, screenWidth, screenHeight } = {
-      ...Downloader.defaultOptions,
-      ...options
-    }
-    this.imageSize = imageSize
-    this.minPulse = minPulse
-    this.screenWidth = screenWidth
-    this.screenHeight = screenHeight
-  }
-
-  async init() {
-    const { Network, Page } = this.client
-
-    console.log('Configuring client...')
-
-    Network.requestIntercepted(this.requestIntercepted.bind(this))
-    Network.requestWillBeSent(this.requestWillBeSent.bind(this))
-    Network.loadingFinished(this.loadingFinished.bind(this))
-
-    await Network.enable()
-    await Page.enable()
-
-    await Network.setRequestInterception({ patterns: [{}] })
-
-    console.log('Client configured.')
-
-    this.isInitialized = true
-  }
-
-  async download(destFile, relativeUrl = Downloader.defaultRelativeUrl) {
-    const { Network, Page } = this.client
-
-    this.requestUrls = {}
-    this.requestIds = {}
-    this.apiRequestUrl = undefined
-    this.apiRequestId = undefined
-    this.imageRequestId = undefined
-
-    this.destFile = destFile
-
-    if (!this.isInitialized) {
-      await this.init()
-    }
-
-    const promise = new Promise((resolve, reject) => {
-      this.resolve = resolve
-      this.reject = reject
-    })
-
-    const url = Downloader.baseUrl + relativeUrl
-    console.log(`Navigating to ${url}...`)
-    await Page.navigate({ url })
-    await Page.loadEventFired()
-
-    return promise
-  }
-
-  async requestIntercepted({ interceptionId, request }) {
-    const { Network } = this.client
-    if (!this.apiRequestUrl && this.isApiRequest(request)) {
-      try {
-        console.log(`\nAPI request intercepted:\n${request.url}`)
-        this.apiRequestUrl = request.url
-        const url = this.modifyApiRequest(request.url)
-        console.log(`\nAPI request modified:\n${url}\n`)
-        console.log('Waiting for API request...')
-        await Network.continueInterceptedRequest({ interceptionId, url })
-      } catch (error) {
-        this.reject(error)
+;(async () => {
+  const browser = await puppeteer.launch({
+    defaultViewport: { width: 1888, height: 800 },
+  })
+  const page = await browser.newPage()
+  for (const fileName in paths) {
+    const path = paths[fileName]
+    await page.goto(`https://500px.com/${path}`)
+    await page.waitForSelector('.photo_thumbnail')
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click('.photo_thumbnail'),
+    ])
+    for (let i = 0; i < 20; i++) {
+      await page.waitFor(() => {
+        const img = document.querySelector('.photo-show__img')
+        return img && (img.naturalWidth > 200 || img.naturalHeight > 300)
+      })
+      const img = await page.$eval('.photo-show__img', img => ({
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        src: img.src,
+      }))
+      console.log(img)
+      if (img.width > img.height && img.width >= 1920 && img.height >= 1080) {
+        const file = fs.createWriteStream(`${fileName}.jpg`)
+        https.get(img.src, response => response.pipe(file))
+        break
       }
-    } else {
-      const { url } = request
-      try {
-        await Network.continueInterceptedRequest({ interceptionId, url })
-      } catch (error) {
-        // Ignored
-      }
+      const navs = await page.$$('[class^=Elements__PhotoNavigationWrapper]')
+      await Promise.all([page.waitForNavigation(), navs.pop().click()])
     }
   }
-
-  requestWillBeSent({ requestId, request }) {
-    try {
-      const { method, url } = request
-      if (method === 'GET') {
-        this.requestUrls[url] = requestId
-        this.requestIds[requestId] = false
-        if (url === this.apiRequestUrl) {
-          this.apiRequestId = requestId
-        }
-      }
-    } catch (error) {
-      this.reject(error)
-    }
-  }
-
-  async loadingFinished({ requestId }) {
-    try {
-      if (this.requestIds[requestId] === undefined) {
-        return
-      }
-      this.requestIds[requestId] = true
-      if (requestId === this.apiRequestId) {
-        await this.apiRequestFinished(requestId)
-      } else if (requestId === this.imageRequestId) {
-        await this.imageRequestFinished(requestId)
-      }
-    } catch (error) {
-      this.reject(error)
-    }
-  }
-
-  async apiRequestFinished(requestId) {
-    const { Network } = this.client
-    console.log('API request finished.')
-    const response = await Network.getResponseBody({ requestId })
-    const { photos } = JSON.parse(response.body)
-    const photo = photos.find(photo => this.shouldSavePhoto(photo))
-    console.log('\nImage found:')
-    console.log({
-      name: photo.name,
-      author: {
-        firstname: photo.user.firstname,
-        lastname: photo.user.lastname,
-      },
-      image_url: photo.image_url,
-    })
-    console.log()
-    await this.saveImage(photo.image_url)
-  }
-
-  async saveImage(url) {
-    this.imageRequestId = this.requestUrls[url]
-    const isImageRequestFinished = this.requestIds[this.imageRequestId]
-    if (isImageRequestFinished) {
-      await this.imageRequestFinished()
-    } else if (isImageRequestFinished === undefined) {
-      await this.downloadImage(url)
-    } else {
-      console.log('Waiting for image request...')
-    }
-  }
-
-  async downloadImage(url) {
-    console.log('Downloading image...')
-  }
-
-  async imageRequestFinished() {
-    const { Network } = this.client
-    console.log('Image request finished.')
-    const { body } = await Network.getResponseBody({
-      requestId: this.imageRequestId,
-    })
-    console.log('Saving image...')
-    const imageData = await this.convertImage(body)
-    const buffer = Buffer.from(imageData, 'base64')
-    await writeFile(this.destFile, buffer)
-    console.log(`Image saved: ${this.destFile}`)
-    this.resolve()
-  }
-
-  async convertImage(imageData) {
-    const { Runtime } = this.client
-    const result = await Runtime.evaluate({
-      expression: `
-        new Promise(function (resolve) {
-          const image = new Image
-          image.onload = function() {
-            var canvas = document.createElement('canvas')
-            canvas.width = this.naturalWidth
-            canvas.height = this.naturalHeight
-            canvas.getContext('2d').drawImage(this, 0, 0)
-            resolve(canvas.toDataURL('image/png'))
-          }
-          image.src = 'data:;base64,${imageData}'
-        })
-      `,
-      awaitPromise: true,
-    })
-    return result.result.value.replace(/^data:image\/(png|jpg);base64,/, '')
-  }
-
-  isApiRequest({ method, url }) {
-    return method === 'GET' && Downloader.apiRequestPattern.test(url)
-  }
-
-  modifyApiRequest(url) {
-    const pattern = `&image_size%5B%5D=(?!${this.imageSize})\\d*`
-    return url
-      .replace(new RegExp(pattern, 'g'), '')
-      .replace(/&image_size%5B%5D=/g, '&image_size=')
-  }
-
-  shouldSavePhoto(photo) {
-    return photo.width > photo.height
-      && photo.width >= this.screenWidth
-      && photo.height >= this.screenHeight
-      && photo.highest_rating >= this.minPulse
-  }
-}
-
-main()
+  await browser.close()
+})()
