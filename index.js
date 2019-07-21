@@ -2,11 +2,11 @@ const fs = require('fs')
 const axios = require('axios')
 
 const destinationFileName = 'wallpaper'
-const feature = 'popular'
+const feature = 'editors'
 const category = ''
-const minWidth = 2048
-const minHeight = 2048
-const mustBeLandscape = true
+const minWidth = 0
+const minHeight = 0
+const mustBeLandscape = false
 
 const apiUrl = 'https://api.500px.com/v1/photos'
 
