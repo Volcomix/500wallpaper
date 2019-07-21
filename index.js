@@ -3,10 +3,10 @@ const fs = require('fs')
 const puppeteer = require('puppeteer')
 
 const paths = {
-  wallpaper: 'search?q=snow-capped&type=photos&sort=pulse',
-  lockscreen: 'search?q=scenic&type=photos&sort=pulse',
+  wallpaper: 'popular/landscapes',
+  lockscreen: 'editors/landscapes',
 }
-const imagesToPick = 5
+const imagesToPick = 1
 const minWidth = 1900
 const minHeight = 800
 const mustBeLandscape = true
@@ -116,9 +116,13 @@ class Explorer {
   }
 
   chooseRandomOne(images) {
-    const random = Math.floor(Math.random() * images.length)
-    console.log('Choosing:', random)
-    return images[random]
+    if (images.length === 1) {
+      return images[0]
+    } else {
+      const random = Math.floor(Math.random() * images.length)
+      console.log('Choosing:', random)
+      return images[random]
+    }
   }
 
   download(image, destinationFileName) {
