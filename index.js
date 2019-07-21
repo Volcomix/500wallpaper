@@ -1,9 +1,10 @@
-import fs from 'fs'
-import axios from 'axios'
+const fs = require('fs')
+const axios = require('axios')
 
+const destinationFileName = 'wallpaper'
 const feature = 'popular'
 const category = ''
-const minWidth = 0
+const minWidth = 2048
 const minHeight = 2048
 const mustBeLandscape = true
 
@@ -17,7 +18,8 @@ async function download() {
     const photo = apiResponse.data.photos.find(isWallpaper)
     const image = photo.images.find(image => image.size === imageSize)
     const imageResponse = await axios.get(image.url, { responseType: 'stream' })
-    imageResponse.data.pipe(fs.createWriteStream(`wallpaper.${image.format}`))
+    const file = fs.createWriteStream(`${destinationFileName}.${image.format}`)
+    imageResponse.data.pipe(file)
     console.log('Downloading:', getPhotoDisplayName(photo))
   } catch (error) {
     console.error(error)
