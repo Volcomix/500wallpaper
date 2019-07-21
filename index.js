@@ -6,13 +6,13 @@ const paths = {
   wallpaper: 'popular/landscapes',
   lockscreen: 'editors/landscapes',
 }
-const imagesToPick = 1
 const minWidth = 1900
 const minHeight = 800
 const mustBeLandscape = true
 
 const largeViewport = { width: 1888, height: 800 }
 const baseUrl = 'https://500px.com'
+const maxPhotoNavigations = 50
 const preloadedImageHeight = 300
 const selectors = {
   photoThumbnail: '.photo_thumbnail',
@@ -22,11 +22,15 @@ const selectors = {
 
 async function main() {
   const browser = await puppeteer.launch({ defaultViewport: largeViewport })
-  const page = await browser.newPage()
-  const explorer = new Explorer(page)
-  for (const destinationFileName in paths) {
-    const imagesPath = paths[destinationFileName]
-    await explorer.findAndDownload(imagesPath, destinationFileName)
+  try {
+    const page = await browser.newPage()
+    const explorer = new Explorer(page)
+    for (const destinationFileName in paths) {
+      const imagesPath = paths[destinationFileName]
+      await explorer.findAndDownload(imagesPath, destinationFileName)
+    }
+  } catch (error) {
+    console.error(error)
   }
   await browser.close()
 }
@@ -43,9 +47,8 @@ class Explorer {
     console.log('Navigating to:', imagesPath)
     await this.page.goto(`${baseUrl}/${imagesPath}`)
     await this.openFirstPhoto()
-    const images = await this.filterPhotos()
-    const image = this.chooseRandomOne(images)
-    this.download(image, destinationFileName)
+    const photo = await this.findPhoto()
+    this.download(photo, destinationFileName)
   }
 
   async openFirstPhoto() {
@@ -56,22 +59,20 @@ class Explorer {
     ])
   }
 
-  async filterPhotos() {
-    const images = []
-    while (images.length < imagesToPick) {
+  async findPhoto() {
+    for (let i = 0; i < maxPhotoNavigations; i++) {
       await this.waitForImageLoading()
       const { width, height, src } = await this.getImageInfos()
       if (this.shouldPickPhoto(width, height)) {
-        console.log('Picking:', this.page.url())
-        images.push({ url: this.page.url(), src: src })
+        return { url: this.page.url(), imageSrc: src }
       } else {
         console.log('Skipping:', this.page.url())
       }
-      if (images.length < imagesToPick) {
-        await this.goToNextPhoto()
-      }
+      await this.goToNextPhoto()
     }
-    return images
+    throw new Error(
+      `No suitable photo found in ${maxPhotoNavigations} navigations`,
+    )
   }
 
   async waitForImageLoading() {
@@ -115,20 +116,10 @@ class Explorer {
     return navigation.pop()
   }
 
-  chooseRandomOne(images) {
-    if (images.length === 1) {
-      return images[0]
-    } else {
-      const random = Math.floor(Math.random() * images.length)
-      console.log('Choosing:', random)
-      return images[random]
-    }
-  }
-
-  download(image, destinationFileName) {
+  download(photo, destinationFileName) {
     const file = fs.createWriteStream(`${destinationFileName}.jpg`)
-    https.get(image.src, response => response.pipe(file))
-    console.log(`Downloading ${destinationFileName}: ${image.url}`)
+    https.get(photo.imageSrc, response => response.pipe(file))
+    console.log(`Downloading ${destinationFileName}: ${photo.url}`)
   }
 }
 
