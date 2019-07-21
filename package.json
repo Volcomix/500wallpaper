@@ -2,14 +2,14 @@
   "name": "500wallpaper",
   "version": "2.0.0",
   "description": "Download wallpapers and lock screens from 500px website",
-  "main": "index.js",
+  "main": "index.mjs",
   "repository": "https://github.com/Volcomix/500wallpaper.git",
   "author": "Volcomix",
   "license": "MIT",
   "scripts": {
-    "start": "node ."
+    "start": "node --experimental-modules ."
   },
   "dependencies": {
-    "puppeteer": "^1.18.1"
+    "axios": "^0.19.0"
   }
 }
