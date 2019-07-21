@@ -3,53 +3,129 @@ const fs = require('fs')
 const puppeteer = require('puppeteer')
 
 const paths = {
-  wallpaper: 'search?q=patagonia&type=photos&sort=pulse',
-  lockscreen: 'search?q=snowcapped&type=photos&sort=pulse',
+  wallpaper: 'search?q=snow-capped&type=photos&sort=pulse',
+  lockscreen: 'search?q=scenic&type=photos&sort=pulse',
+}
+const imagesToPick = 5
+const minWidth = 1900
+const minHeight = 800
+const mustBeLandscape = true
+
+const largeViewport = { width: 1888, height: 800 }
+const baseUrl = 'https://500px.com'
+const preloadedImageHeight = 300
+const selectors = {
+  photoThumbnail: '.photo_thumbnail',
+  photo: '.photo-show__img',
+  photoNavigation: '[class^=Elements__PhotoNavigationWrapper]',
 }
 
-;(async () => {
-  const browser = await puppeteer.launch({
-    defaultViewport: { width: 1888, height: 800 },
-  })
+async function main() {
+  const browser = await puppeteer.launch({ defaultViewport: largeViewport })
   const page = await browser.newPage()
-  for (const fileName in paths) {
-    const path = paths[fileName]
-    console.log('Navigating to:', path)
-    await page.goto(`https://500px.com/${path}`)
-    await page.waitForSelector('.photo_thumbnail')
-    await Promise.all([
-      page.waitForNavigation(),
-      page.click('.photo_thumbnail'),
-    ])
-    const images = []
-    for (let i = 0; i < 50; i++) {
-      await page.waitFor(() => {
-        const img = document.querySelector('.photo-show__img')
-        return img && img.naturalHeight > 300
-      })
-      const img = await page.$eval('.photo-show__img', img => ({
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-        src: img.src,
-      }))
-      if (img.width > img.height && img.width >= 1900 && img.height >= 800) {
-        console.log('Keeping:', page.url())
-        images.push({ url: page.url(), src: img.src })
-        if (images.length === 5) {
-          break
-        }
-      } else {
-        console.log('Skipping:', page.url())
-      }
-      const navs = await page.$$('[class^=Elements__PhotoNavigationWrapper]')
-      await Promise.all([page.waitForNavigation(), navs.pop().click()])
-    }
-    const random = Math.floor(Math.random() * images.length)
-    console.log('Random:', random)
-    const image = images[random]
-    const file = fs.createWriteStream(`${fileName}.jpg`)
-    https.get(image.src, response => response.pipe(file))
-    console.log(`Downloading ${fileName}: ${image.url}`)
+  const explorer = new Explorer(page)
+  for (const destinationFileName in paths) {
+    const imagesPath = paths[destinationFileName]
+    await explorer.findAndDownload(imagesPath, destinationFileName)
   }
   await browser.close()
-})()
+}
+
+class Explorer {
+  /**
+   * @param {puppeteer.Page} page
+   */
+  constructor(page) {
+    this.page = page
+  }
+
+  async findAndDownload(imagesPath, destinationFileName) {
+    console.log('Navigating to:', imagesPath)
+    await this.page.goto(`${baseUrl}/${imagesPath}`)
+    await this.openFirstPhoto()
+    const images = await this.filterPhotos()
+    const image = this.chooseRandomOne(images)
+    this.download(image, destinationFileName)
+  }
+
+  async openFirstPhoto() {
+    await this.page.waitForSelector(selectors.photoThumbnail)
+    await Promise.all([
+      this.page.waitForNavigation(),
+      this.page.click(selectors.photoThumbnail),
+    ])
+  }
+
+  async filterPhotos() {
+    const images = []
+    while (images.length < imagesToPick) {
+      await this.waitForImageLoading()
+      const { width, height, src } = await this.getImageInfos()
+      if (this.shouldPickPhoto(width, height)) {
+        console.log('Picking:', this.page.url())
+        images.push({ url: this.page.url(), src: src })
+      } else {
+        console.log('Skipping:', this.page.url())
+      }
+      if (images.length < imagesToPick) {
+        await this.goToNextPhoto()
+      }
+    }
+    return images
+  }
+
+  async waitForImageLoading() {
+    await this.page.waitFor(
+      (selector, preloadedImageHeight) => {
+        const { naturalHeight } = document.querySelector(selector)
+        return naturalHeight > preloadedImageHeight
+      },
+      {},
+      selectors.photo,
+      preloadedImageHeight,
+    )
+  }
+
+  async getImageInfos() {
+    return await this.page.$eval(selectors.photo, img => ({
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      src: img.src,
+    }))
+  }
+
+  shouldPickPhoto(width, height) {
+    return (
+      (!mustBeLandscape || width > height) &&
+      width >= minWidth &&
+      height >= minHeight
+    )
+  }
+
+  async goToNextPhoto() {
+    const nextPhotoNavigation = await this.getNextPhotoNavigation()
+    await Promise.all([
+      this.page.waitForNavigation(),
+      nextPhotoNavigation.click(),
+    ])
+  }
+
+  async getNextPhotoNavigation() {
+    const navigation = await this.page.$$(selectors.photoNavigation)
+    return navigation.pop()
+  }
+
+  chooseRandomOne(images) {
+    const random = Math.floor(Math.random() * images.length)
+    console.log('Choosing:', random)
+    return images[random]
+  }
+
+  download(image, destinationFileName) {
+    const file = fs.createWriteStream(`${destinationFileName}.jpg`)
+    https.get(image.src, response => response.pipe(file))
+    console.log(`Downloading ${destinationFileName}: ${image.url}`)
+  }
+}
+
+main()
