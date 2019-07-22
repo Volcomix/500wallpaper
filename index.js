@@ -2,10 +2,12 @@
 
 const program = require('commander')
 
+const package = require('./package')
 const { features, categories } = require('./constants')
 const Wallpaper = require('./wallpaper')
 
 program
+  .version(package.version)
   .option('-f, --feature <featureName>', 'photo stream to be retrieved')
   .option(
     '-c, --category <categoryName>',
@@ -30,13 +32,24 @@ program
     console.log(' ', categories.join(', '))
     console.log('')
     console.log('Examples:')
-    console.log('  $ 500wallpaper')
-    console.log('  $ 500wallpaper -o wallpaper')
+    console.log(`  $ ${package.name}`)
+    console.log(`  $ ${package.name} -o wallpaper`)
     console.log(
-      '  $ 500wallpaper -f editors -c Landscapes -H 2048 -l -o ~/Images/wallpaper',
+      `  $ ${package.name} ${[
+        '-f editors',
+        '-c Landscapes',
+        '-H 2048',
+        '-l',
+        '-o ~/Images/wallpaper}',
+      ].join(' ')}`,
     )
     console.log(
-      '  $ 500wallpaper -f popular -c "City and Architecture,Landscapes,Nature,Travel" -H 4096 -l',
+      `  $ ${package.name} ${[
+        '-f popular',
+        '-c "City and Architecture,Landscapes,Nature,Travel"',
+        '-H 4096',
+        '-l',
+      ].join(' ')}`,
     )
   })
 
