@@ -1,5 +1,6 @@
 const fs = require('fs')
 const axios = require('axios')
+const buildURL = require('axios/lib/helpers/buildURL')
 
 const apiUrl = 'https://api.500px.com/v1/photos'
 
@@ -27,8 +28,10 @@ class Wallpaper {
   }
 
   async retrievePhotos() {
-    console.log('Retrieving photos')
-
+    const interceptor = axios.interceptors.request.use(config => {
+      console.log('Retrieving photos:', this.getUrl(config))
+      return config
+    })
     const response = await axios.get(apiUrl, {
       params: {
         feature: this.feature,
@@ -36,14 +39,8 @@ class Wallpaper {
         image_size: [this.imageSize],
       },
     })
-    const photos = response.data.photos
-
-    console.log(
-      `${photos.length} photos retrieved from:`,
-      response.request.path,
-    )
-
-    return photos
+    axios.interceptors.request.eject(interceptor)
+    return response.data.photos
   }
 
   findWallpaper(photos) {
@@ -79,6 +76,10 @@ class Wallpaper {
 
   getPhotoDisplayName(photo) {
     return photo.url.split('/').pop()
+  }
+
+  getUrl(config) {
+    return buildURL(config.url, config.params, config.paramsSerializer)
   }
 }
 
