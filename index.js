@@ -40,7 +40,7 @@ program
         '-c Landscapes',
         '-H 2048',
         '-l',
-        '-o ~/Images/wallpaper}',
+        '-o ~/Images/wallpaper',
       ].join(' ')}`,
     )
     console.log(

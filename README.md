@@ -40,6 +40,6 @@ Categories:
 Examples:
   $ 500wallpaper
   $ 500wallpaper -o wallpaper
-  $ 500wallpaper -f editors -c Landscapes -H 2048 -l -o ~/Images/wallpaper}
+  $ 500wallpaper -f editors -c Landscapes -H 2048 -l -o ~/Images/wallpaper
   $ 500wallpaper -f popular -c "City and Architecture,Landscapes,Nature,Travel" -H 4096 -l
 ```
