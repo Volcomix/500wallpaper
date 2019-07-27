@@ -8,8 +8,15 @@
   "repository": "https://github.com/volcomix/500wallpaper.git",
   "author": "Volcomix",
   "license": "MIT",
+  "scripts": {
+    "screencast:rec": "asciinema rec --overwrite screen.cast",
+    "screencast:svg": "svg-term --in screen.cast --out screencast.svg --window"
+  },
   "dependencies": {
     "axios": "^0.19.0",
     "commander": "^2.20.0"
+  },
+  "devDependencies": {
+    "svg-term-cli": "^2.1.1"
   }
 }
