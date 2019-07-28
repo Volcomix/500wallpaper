@@ -1,6 +1,6 @@
 # 500wallpaper
 
-Download wallpapers and lock screens from 500px website.
+Download wallpapers and lock screens from [500px](https://500px.com) website.
 
 <p align="center">
   <img width="600" src="screencast.svg?sanitize=true">
@@ -8,13 +8,21 @@ Download wallpapers and lock screens from 500px website.
 
 ## Installation
 
-- Clone this repo.
-- Run `yarn` or `npm install`.
-- Run `yarn link` or `npm link`
+```bash
+npm install -g 500wallpaper
+# OR
+yarn global add 500wallpaper
+```
+
+Alternatively, you can also invoke the binary directly with [npx](https://www.npmjs.com/package/npx):
+
+```bash
+npx 500wallpaper
+```
 
 ## Usage
 
-Run `500wallpaper` without argument to download the recently added photo with the highest Pulse from 500px website.
+Run `500wallpaper` without argument to download the recently added photo with the highest Pulse from [500px](https://500px.com).
 
 View the list of options using `500wallpaper --help`:
 
