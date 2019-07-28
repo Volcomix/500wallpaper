@@ -3,7 +3,7 @@
 Download wallpapers and lock screens from 500px website.
 
 <p align="center">
-  <img width="600" src="screencast.svg">
+  <img width="600" src="screencast.svg?sanitize=true">
 </p>
 
 ## Installation

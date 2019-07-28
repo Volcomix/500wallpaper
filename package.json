@@ -1,6 +1,6 @@
 {
   "name": "500wallpaper",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Download wallpapers and lock screens from 500px website",
   "bin": {
     "500wallpaper": "./index.js"
@@ -8,6 +8,12 @@
   "repository": "https://github.com/volcomix/500wallpaper.git",
   "author": "Volcomix",
   "license": "MIT",
+  "keywords": [
+    "500px",
+    "wallpaper",
+    "lockscreen",
+    "cli"
+  ],
   "scripts": {
     "screencast:rec": "asciinema rec --overwrite screen.cast",
     "screencast:svg": "svg-term --in screen.cast --out screencast.svg --window"
