@@ -1,5 +1,10 @@
 # 500wallpaper
 
+[![dependencies Status](https://david-dm.org/volcomix/500wallpaper/status.svg)](https://david-dm.org/volcomix/500wallpaper)
+[![devDependencies Status](https://david-dm.org/volcomix/500wallpaper/dev-status.svg)](https://david-dm.org/volcomix/500wallpaper?type=dev)
+[![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=Volcomix/500wallpaper)](https://dependabot.com)
+[![License](https://img.shields.io/github/license/volcomix/500wallpaper)](LICENSE)
+
 Download wallpapers and lock screens from [500px](https://500px.com) website.
 
 <p align="center">
@@ -51,3 +56,8 @@ Examples:
   $ 500wallpaper -f editors -c Landscapes -H 2048 -l -o ~/Images/wallpaper
   $ 500wallpaper -f popular -c "City and Architecture,Landscapes,Nature,Travel" -H 4096 -l
 ```
+
+## License
+
+This project is licensed under the terms of the
+[MIT license](LICENSE).
