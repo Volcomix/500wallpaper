@@ -1,5 +1,7 @@
 # 500wallpaper
 
+[![npm Version](https://img.shields.io/npm/v/500wallpaper)](https://www.npmjs.com/package/500wallpaper)
+[![npm Downloads](https://img.shields.io/npm/dm/500wallpaper)](https://www.npmjs.com/package/500wallpaper)
 [![dependencies Status](https://david-dm.org/volcomix/500wallpaper/status.svg)](https://david-dm.org/volcomix/500wallpaper)
 [![devDependencies Status](https://david-dm.org/volcomix/500wallpaper/dev-status.svg)](https://david-dm.org/volcomix/500wallpaper?type=dev)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=Volcomix/500wallpaper)](https://dependabot.com)
