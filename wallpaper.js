@@ -24,6 +24,7 @@ class Wallpaper {
       await this.download(photo)
     } catch (error) {
       console.error(error)
+      process.exitCode = 1
     }
   }
 
