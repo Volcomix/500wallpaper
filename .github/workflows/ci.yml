@@ -18,7 +18,7 @@ jobs:
         run: yarn
 
       - name: Install CLI
-        run: npm install -g
+        run: yarn link
 
       - name: Run
-        run: 500wallpaper -o error/wallpaper
+        run: 500wallpaper -o wallpaper
