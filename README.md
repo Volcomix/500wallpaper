@@ -1,5 +1,6 @@
 # 500wallpaper
 
+[![CI Status](https://github.com/volcomix/500wallpaper/workflows/CI/badge.svg)](https://github.com/volcomix/500wallpaper/actions)
 [![npm Version](https://img.shields.io/npm/v/500wallpaper)](https://www.npmjs.com/package/500wallpaper)
 [![npm Downloads](https://img.shields.io/npm/dm/500wallpaper)](https://www.npmjs.com/package/500wallpaper)
 [![dependencies Status](https://david-dm.org/volcomix/500wallpaper/status.svg)](https://david-dm.org/volcomix/500wallpaper)
