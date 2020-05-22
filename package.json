@@ -1,6 +1,5 @@
 {
   "name": "500wallpaper",
-  "version": "1.0.13",
   "description": "Download wallpapers and lock screens from 500px website",
   "bin": {
     "500wallpaper": "./index.js"

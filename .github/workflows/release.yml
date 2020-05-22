@@ -20,6 +20,6 @@ jobs:
         run: yarn
 
       - name: Publish to npm
-        run: yarn publish
+        run: yarn publish --new-version `echo '${{ github.ref }}' | cut -d 'v' -f 2`
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
