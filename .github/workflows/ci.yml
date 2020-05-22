@@ -19,6 +19,9 @@ jobs:
       - name: Install dependencies
         run: yarn
 
+      - name: Set default version
+        run: yarn version --no-git-tag-version --new-version 0.0.0
+
       - name: Install CLI
         run: npm install -g
 
