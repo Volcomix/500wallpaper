@@ -23,43 +23,41 @@ program
   )
   .option('-l, --landscape', 'the photo must be in landscape orientation')
   .option('-o, --output <fileName>', 'destination file name without extension')
-  .on('--help', () => {
-    console.log('')
-    console.log('Features:')
-    console.log(' ', features.join(', '))
-    console.log('')
-    console.log('Categories:')
-    console.log(' ', categories.join(', '))
-    console.log('')
-    console.log('Examples:')
-    console.log(`  $ ${package.name}`)
-    console.log(`  $ ${package.name} -o wallpaper`)
-    console.log(
-      `  $ ${package.name} ${[
-        '-f editors',
-        '-c Landscapes',
-        '-H 2048',
-        '-l',
-        '-o ~/Images/wallpaper',
-      ].join(' ')}`,
-    )
-    console.log(
-      `  $ ${package.name} ${[
-        '-f popular',
-        '-c "City and Architecture,Landscapes,Nature,Travel"',
-        '-H 4096',
-        '-l',
-      ].join(' ')}`,
-    )
-  })
+  .addHelpText(
+    'after',
+    `
+Features:
+  ${features.join(', ')}
+
+Categories:
+  ${categories.join(', ')}
+
+Examples:
+  $ ${package.name}
+  $ ${package.name} -o wallpaper
+  $ ${package.name} ${[
+      '-f editors',
+      '-c Landscapes',
+      '-H 2048',
+      '-l',
+      '-o ~/Images/wallpaper',
+    ].join(' ')}
+  $ ${package.name} ${[
+      '-f popular',
+      '-c "City and Architecture,Landscapes,Nature,Travel"',
+      '-H 4096',
+      '-l',
+    ].join(' ')}`,
+  )
 
 program.parse(process.argv)
+const options = program.opts()
 
 new Wallpaper({
-  outFileName: program.output,
-  feature: program.feature,
-  category: program.category,
-  minWidth: program.width,
-  minHeight: program.height,
-  mustBeLandscape: program.landscape,
+  outFileName: options.output,
+  feature: options.feature,
+  category: options.category,
+  minWidth: options.width,
+  minHeight: options.height,
+  mustBeLandscape: options.landscape,
 }).findAndDownload()
