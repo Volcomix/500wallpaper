@@ -1,6 +1,6 @@
 {
   "name": "500wallpaper",
-  "description": "Download wallpapers and lock screens from 500px website",
+  "description": "CLI to download wallpapers and lock screens from 500px website",
   "bin": {
     "500wallpaper": "./index.js"
   },

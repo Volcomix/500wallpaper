@@ -7,7 +7,7 @@
 [![devDependencies Status](https://david-dm.org/volcomix/500wallpaper/dev-status.svg)](https://david-dm.org/volcomix/500wallpaper?type=dev)
 [![License](https://img.shields.io/github/license/volcomix/500wallpaper)](LICENSE)
 
-Download wallpapers and lock screens from [500px](https://500px.com) website.
+CLI to download wallpapers and lock screens from [500px](https://500px.com) website.
 
 <p align="center">
   <img width="600" src="screencast.svg?sanitize=true">
