@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "axios": "^0.27.2",
-    "commander": "^9.4.0"
+    "commander": "^9.5.0"
   },
   "devDependencies": {
     "svg-term-cli": "^2.1.1"
